@@ -1,0 +1,4 @@
+[build]
+  base    = "flowforge-frontend"
+  command = "npm run build"
+  publish = ".next"
