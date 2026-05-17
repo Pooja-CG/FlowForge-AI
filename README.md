@@ -4,7 +4,7 @@
 
 Built for the **Google Cloud Rapid Agent Hackathon**, FlowForge AI bridges the "visibility gap" in multi-step AI operations. Instead of running background workflows in a hidden black box, FlowForge AI provides a transparent, intuitive command deck where users don't just prompt an agent—they orchestrate a highly visual, cooperative AI workforce.
 
-🌐 **Live Demo:** [flowforge-ai.netlify.app](https://flowforge-ai.netlify.app)
+🌐 **Live Demo:** [https://flowforage-ai.netlify.app/]
 
 ---
 
