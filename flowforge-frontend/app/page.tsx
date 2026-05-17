@@ -81,7 +81,7 @@ export default function Home() {
     }
   }
 
-  // --- NEW: Trigger Autonomous Agent Execution for a specific task ---
+  // --- Trigger Autonomous Agent Execution for a specific task ---
   async function runAgentOnTask(taskTitle: string, moduleName: string, taskKey: string) {
     setExecutingTasks((prev) => ({ ...prev, [taskKey]: true }));
     try {
@@ -224,8 +224,8 @@ export default function Home() {
                                 onClick={() => runAgentOnTask(task.title, module.module, taskKey)}
                                 disabled={isExecuting}
                                 className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition ${isCompleted
-                                    ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"
-                                    : "bg-blue-600 text-white border-transparent hover:bg-blue-700 disabled:bg-zinc-800"
+                                  ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"
+                                  : "bg-blue-600 text-white border-transparent hover:bg-blue-700 disabled:bg-zinc-800"
                                   }`}
                               >
                                 {isExecuting ? (
@@ -257,18 +257,11 @@ export default function Home() {
 
                               {/* Beautiful Custom Styled Container for Parsed Markdown */}
                               <div className="bg-zinc-950 text-zinc-300 font-sans text-sm p-5 rounded-lg overflow-x-auto max-h-80 border border-zinc-900 shadow-inner overflow-y-auto">
-                                <Markdown
-                                  className="prose prose-invert max-w-none text-left space-y-4
-          prose-headings:text-blue-400 prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
-          prose-h2:text-xl prose-h3:text-lg
-          prose-p:text-zinc-300 prose-p:leading-relaxed
-          prose-ul:list-disc prose-ul:pl-5 prose-ul:space-y-1 prose-ul:text-zinc-300
-          prose-ol:list-decimal prose-ol:pl-5 prose-ol:space-y-1 prose-ol:text-zinc-300
-          prose-strong:text-white prose-strong:font-semibold
-          prose-code:text-cyan-400 prose-code:font-mono prose-code:bg-zinc-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded"
-                                >
-                                  {taskOutputs[taskKey]}
-                                </Markdown>
+                                <div className="prose prose-invert max-w-none text-left space-y-2 prose-headings:text-blue-400 prose-headings:font-semibold prose-headings:mt-4 prose-h2:text-xl prose-h3:text-lg prose-p:text-zinc-300 prose-p:leading-relaxed">
+                                  <Markdown>
+                                    {taskOutputs[taskKey]}
+                                  </Markdown>
+                                </div>
                               </div>
                             </div>
                           )}
