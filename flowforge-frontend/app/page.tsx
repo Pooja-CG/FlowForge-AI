@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   FolderKanban,
   Activity,
@@ -9,11 +10,18 @@ import {
   Play,
   Loader2,
   CheckCircle2,
+  LogOut,
+  User,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { createGitLabIssue } from "@/services/gitlab";
 
 export default function Home() {
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
+  const [userName, setUserName] = useState<string>("Developer");
+
+  // Core Orchestration States
   const [idea, setIdea] = useState("");
   const [workflow, setWorkflow] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -23,6 +31,27 @@ export default function Home() {
   const [executingTasks, setExecutingTasks] = useState<{ [key: string]: boolean }>({});
   const [completedTasks, setCompletedTasks] = useState<{ [key: string]: boolean }>({});
   const [taskOutputs, setTaskOutputs] = useState<{ [key: string]: string }>({});
+
+  // 1. Route Guard Authentication Check
+  useEffect(() => {
+    const isAuth = localStorage.getItem("isAuthenticated");
+    if (!isAuth) {
+      router.push("/login");
+    } else {
+      // Grab registered user name if it exists, fallback to default
+      const storedName = localStorage.getItem("registeredName");
+      if (storedName) {
+        setUserName(storedName);
+      }
+      setCheckingAuth(false);
+    }
+  }, [router]);
+
+  // Logout Handler
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    router.push("/login");
+  };
 
   const stats = [
     { title: "Active Projects", value: "12", icon: FolderKanban },
@@ -81,7 +110,6 @@ export default function Home() {
     }
   }
 
-  // --- Trigger Autonomous Agent Execution for a specific task ---
   async function runAgentOnTask(taskTitle: string, moduleName: string, taskKey: string) {
     setExecutingTasks((prev) => ({ ...prev, [taskKey]: true }));
     try {
@@ -114,17 +142,46 @@ export default function Home() {
     }
   }
 
+  // Pre-render security wall fallback
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-zinc-500 font-mono text-xs tracking-widest animate-pulse">
+          VERIFYING INTERFACE PROTOCOLS...
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-black text-white p-8">
+    <main className="min-h-screen bg-black text-white p-8 selection:bg-zinc-800">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-5xl font-bold mb-3 tracking-tight bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
-            FlowForge AI
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Autonomous Project & Workflow Execution Agent
-          </p>
+        
+        {/* Header and User Controls */}
+        <div className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-900 pb-6">
+          <div>
+            <h1 className="text-5xl font-bold mb-3 tracking-tight bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
+              FlowForge AI
+            </h1>
+            <p className="text-gray-400 text-sm sm:text-base">
+              Autonomous Project & Workflow Execution Agent
+            </p>
+          </div>
+          
+          {/* User Micro-Badge Interface */}
+          <div className="flex items-center gap-3 self-start sm:self-center">
+            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl text-sm font-medium">
+              <User className="w-4 h-4 text-blue-400" />
+              <span className="text-zinc-300">{userName}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-zinc-950 hover:bg-red-950/20 border border-zinc-800 hover:border-red-900 px-4 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-red-400 transition cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -134,7 +191,7 @@ export default function Home() {
             return (
               <div
                 key={index}
-                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6"
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-md"
               >
                 <div className="flex items-center justify-between mb-4">
                   <Icon className="w-8 h-8 text-blue-400" />
@@ -147,18 +204,18 @@ export default function Home() {
         </div>
 
         {/* AI Input Panel */}
-        <div className="mt-10 bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="mt-10 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
           <h2 className="text-2xl font-semibold mb-4">Create New Project</h2>
           <textarea
             value={idea}
             onChange={(e) => setIdea(e.target.value)}
             placeholder="Example: Build a food delivery app in 7 days..."
-            className="w-full h-36 bg-black border border-zinc-700 rounded-xl p-4 outline-none resize-none focus:border-blue-500 transition-colors text-white"
+            className="w-full h-36 bg-black border border-zinc-700 rounded-xl p-4 outline-none resize-none focus:border-blue-500 transition-colors text-white text-sm"
           />
           <button
             onClick={handleGenerate}
             disabled={loading}
-            className="mt-5 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed transition px-6 py-3 rounded-xl font-medium shadow-md"
+            className="mt-5 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed transition px-6 py-3 rounded-xl font-medium shadow-md cursor-pointer"
           >
             {loading ? "Orchestrating Pipeline..." : "Generate Workflow"}
           </button>
@@ -176,7 +233,7 @@ export default function Home() {
           <div className="mt-10">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold">Generated Workflow</h2>
-              <div className="text-green-400 text-sm font-medium px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
+              <div className="text-green-400 text-xs sm:text-sm font-medium px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
                 GitLab Issues Tracked & Logged to MongoDB
               </div>
             </div>
@@ -203,7 +260,7 @@ export default function Home() {
                           key={taskIndex}
                           className="bg-black border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors"
                         >
-                          <div className="flex justify-between items-start">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
                               <div className="flex items-center gap-2">
                                 {isCompleted && <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />}
@@ -214,16 +271,15 @@ export default function Home() {
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 self-end sm:self-center">
                               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 uppercase tracking-wider">
                                 {task.priority || "Medium"}
                               </span>
 
-                              {/* ACTION BUTTON TO EXECUTE THE TASK */}
                               <button
                                 onClick={() => runAgentOnTask(task.title, module.module, taskKey)}
                                 disabled={isExecuting}
-                                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition ${isCompleted
+                                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition cursor-pointer ${isCompleted
                                   ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"
                                   : "bg-blue-600 text-white border-transparent hover:bg-blue-700 disabled:bg-zinc-800"
                                   }`}
@@ -248,14 +304,12 @@ export default function Home() {
                             </div>
                           </div>
 
-                          {/* INLINE EXPANDABLE OUTPUT PANEL */}
+                          {/* Expandable Markdown Output Container */}
                           {hasOutput && (
                             <div className="mt-4 pt-4 border-t border-zinc-800 animate-fadeIn">
                               <div className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider">
                                 Agent Execution Output
                               </div>
-
-                              {/* Beautiful Custom Styled Container for Parsed Markdown */}
                               <div className="bg-zinc-950 text-zinc-300 font-sans text-sm p-5 rounded-lg overflow-x-auto max-h-80 border border-zinc-900 shadow-inner overflow-y-auto">
                                 <div className="prose prose-invert max-w-none text-left space-y-2 prose-headings:text-blue-400 prose-headings:font-semibold prose-headings:mt-4 prose-h2:text-xl prose-h3:text-lg prose-p:text-zinc-300 prose-p:leading-relaxed">
                                   <Markdown>
