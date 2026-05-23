@@ -1,8 +1,10 @@
 import os
 import json
 from datetime import datetime
-from fastapi import FastAPI, Query
+import bcrypt  # Make sure to run: pip install bcrypt
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
 from google import genai
 from google.genai import types
 from pymongo import MongoClient
@@ -25,13 +27,21 @@ try:
 except Exception as e:
     print(f"❌ MongoDB Connection Failed: {e}")
 
+# Database Collections Routing
 db = mongo_client["FlowForge"]
 projects_col = db["projects"]
 tasks_col = db["tasks"]
 agent_logs_col = db["agent_logs"]
+users_col = db["users"]  # New Collection for user profiles
 
 API_KEY = "AIzaSyBgz1lYQ5nTUoK3Jgt2QN7nq_n7Q_LrsqU"
 client = genai.Client(api_key=API_KEY)
+
+# --- Pydantic Schemes for API Request Validations ---
+class RegisterSchema(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
 
 sprint_schema = {
     "type": "OBJECT",
@@ -62,6 +72,38 @@ sprint_schema = {
     "required": ["modules"]
 }
 
+# --- NEW: User Authentication Registration Path ---
+@app.post("/api/auth/register")
+async def register_user(user: RegisterSchema):
+    try:
+        # Check if user already exists inside Compass
+        if users_col.find_one({"email": user.email}):
+            raise HTTPException(status_code=400, detail="Email is already registered")
+        
+        # Hash the plain text password securely
+        hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+        
+        # Build user data document block
+        user_document = {
+            "name": user.name,
+            "email": user.email,
+            "password": hashed_password.decode('utf-8'), 
+            "created_at": datetime.utcnow()
+        }
+        
+        # Write to MongoDB FlowForge users collection
+        users_col.insert_one(user_document)
+        print(f" Saved user record to MongoDB for: {user.email}")
+        
+        return {"status": "success", "message": "User profile successfully registered to MongoDB"}
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Registration Error: {e}")
+        return {"status": "error", "message": str(e)}
+
+# --- Core AI Agent Generation & Sprint Logic ---
 @app.get("/api/generate-sprint")
 def generate_sprint(prompt: str = "Build a app"):
     try:
