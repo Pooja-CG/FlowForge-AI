@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from datetime import datetime
 import bcrypt  # Make sure to run: pip install bcrypt
 from fastapi import FastAPI, Query, HTTPException
@@ -8,6 +9,26 @@ from pydantic import BaseModel, EmailStr
 from google import genai
 from google.genai import types
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+# --- DYNAMIC ENVIRONMENT LOADER ---
+# This looks up your directory hierarchy to locate .env.local automatically
+current_dir = Path(__file__).resolve().parent
+env_path = None
+
+# Search upward through parent directories to find your .env.local file
+for parent in [current_dir, current_dir.parent, current_dir.parent.parent, current_dir.parent.parent.parent]:
+    potential_path = parent / ".env.local"
+    if potential_path.exists():
+        env_path = potential_path
+        break
+
+if env_path:
+    load_dotenv(dotenv_path=env_path)
+    print(f"✅ Securely loaded environment from: {env_path}")
+else:
+    load_dotenv()  # Fallback to standard environment search
+    print("⚠️ Could not find .env.local in parent paths, attempting system environment fallback.")
 
 app = FastAPI()
 
@@ -19,7 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Connect to local MongoDB
+# --- LOCAL DATABASE ORCHESTRATION ---
 try:
     mongo_client = MongoClient("mongodb://127.0.0.1:27017/", serverSelectionTimeoutMS=2000)
     mongo_client.server_info() # Force connection test
@@ -32,9 +53,18 @@ db = mongo_client["FlowForge"]
 projects_col = db["projects"]
 tasks_col = db["tasks"]
 agent_logs_col = db["agent_logs"]
-users_col = db["users"]  # New Collection for user profiles
+users_col = db["users"]  # Collection for user profiles
 
-API_KEY = "AIzaSyBgz1lYQ5nTUoK3Jgt2QN7nq_n7Q_LrsqU"
+# Securely extract the key from your environment configuration
+API_KEY = os.environ.get("NEXT_PUBLIC_GEMINI_API_KEY")
+
+if not API_KEY:
+    raise ValueError(
+        "❌ CRITICAL ERROR: 'NEXT_PUBLIC_GEMINI_API_KEY' environment variable is missing. "
+        "Please check your .env.local file placement and key definitions."
+    )
+
+# Initialize the Gemini client securely
 client = genai.Client(api_key=API_KEY)
 
 # --- Pydantic Schemes for API Request Validations ---
@@ -72,7 +102,7 @@ sprint_schema = {
     "required": ["modules"]
 }
 
-# --- NEW: User Authentication Registration Path ---
+# --- USER AUTHENTICATION REGISTRATION PATH ---
 @app.post("/api/auth/register")
 async def register_user(user: RegisterSchema):
     try:
@@ -80,7 +110,7 @@ async def register_user(user: RegisterSchema):
         if users_col.find_one({"email": user.email}):
             raise HTTPException(status_code=400, detail="Email is already registered")
         
-        # Hash the plain text password securely
+        # Hash the plain text password securely using bcrypt
         hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
         
         # Build user data document block
@@ -103,7 +133,7 @@ async def register_user(user: RegisterSchema):
         print(f"❌ Registration Error: {e}")
         return {"status": "error", "message": str(e)}
 
-# --- Core AI Agent Generation & Sprint Logic ---
+# --- CORE AI AGENT GENERATION & SPRINT LOGIC ---
 @app.get("/api/generate-sprint")
 def generate_sprint(prompt: str = "Build a app"):
     try:
@@ -148,6 +178,7 @@ def generate_sprint(prompt: str = "Build a app"):
         print(f"❌ Error Generating Sprint: {e}")
         return {"status": "error", "message": str(e)}
 
+# --- TASK EXECUTION PATH ---
 @app.post("/api/execute-task")
 def execute_task(task_title: str = Query(...), module_name: str = Query(...)):
     try:
